@@ -1,0 +1,47 @@
+--- #Download confluence
+- hosts: all
+  vars:
+    confl_bin: atlassian-confluence-6.13.6-x64.bin
+    confl_url: 'https://product-downloads.atlassian.com/software/confluence/downloads/{{ confl_bin }}'
+    home_dir: /u01/svc_confl/  # define home directory here
+  tasks:
+    - name: Update and upgrade apt packages
+      become: true
+      apt:
+         upgrade: yes
+         update_cache: yes
+         cache_valid_time: 86400 #One day
+    - name: Create Var Directory
+      file:
+        path: '{{ home_dir }}/var/atlassian/application-data/confluence'
+        state: directory
+        mode: "0755"
+    - name: Create App Home Directory
+      file:
+        path: '{{ home_dir }}/opt/atlassian/confluence'
+        state: directory
+        mode: "0755"
+    - name: Download Confluence
+      get_url:
+        url: '{{ confl_url}}'
+        dest: '{{ home_dir }}/var/atlassian/application-data/confluence/{{ confl_bin }}'
+        mode: "0755"
+    - name: Make Installer Executable
+      shell: chmod a+x {{ confl_bin }}
+      args:
+        chdir: '{{ home_dir }}/var/atlassian/application-data/confluence/'
+    - name: Copy response.varfile
+      copy:
+        src: '~/ansiblescripts/InstallConfig/response.varfile'
+        dest: '{{ home_dir }}/var/atlassian/application-data/confluence/response.varfile'
+        owner: svc_confl
+        group: svc_confl
+        mode: 0644
+#      shell: cp {{ home_dir }}/temp/response.varfile {{ home_dir }}/var/atlassian/application-data/confluence/response.varfile
+    - name: Install confluence
+      shell: ./{{ confl_bin }} -q -varfile response.varfile
+      args:
+        chdir: '{{ home_dir }}/var/atlassian/application-data/confluence/'
+# Remove the comment block below  if confluence.cfg..xml file has been updated with DB connection parameters
+#    - name: Copy config.xml to Connect to DB params
+#      shell: cp  /home/ec2-user/temp/confluence.cfg.xml /home/ec2-user/var/atlassian/application-data/confluence/confluence.cfg.xml
